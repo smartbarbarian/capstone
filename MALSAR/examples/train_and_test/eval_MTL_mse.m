@@ -50,38 +50,49 @@ function mse = eval_MTL_mse (Y, X, W)
 %
 %   Last modified on Jan 6, 2016.
 %
-    Threshold = 0.8;
+    %Threshold = 0.8;
     task_num = length(X);
-    mse = 0;
+    %mse = 0;
     
     %total_sample = 0;
-    true_pos = 0;
-    pos_num = 0;
+%     true_pos = 0;
+%     pos_num = 0;
+    y = [];
+    y_true = [];
     for t = 1: task_num
+          %y_pred = X{t} * W(:, t) + C(t);
+          y_pred = glmval(W(:, t), X{t}, 'logit','constant','off');
+          % y_pred = glmval(W(:, t), X{t}, 'logit');
+          y_label = y_pred > 0.5;
+          y = [y; y_label];
+          y_true = [y_true; Y{t}];
         %y_pred = X{t} * W(:, t);
-        y_pred = glmval(W(:, t), X{t}, 'logit','constant','off');
-        prob_label = [y_pred Y{t}];
-        prob_label = sortrows(prob_label, - 1);%default ascending, unless you are using 2017b
+        %y_pred = glmval(W(:, t), X{t}, 'logit','constant','off');
         
-        true_label_num = sum(Y{t} == 1);
-        threshold_num = Threshold*true_label_num;
-        now_true_num = 0;
-        for i = 1:length(Y{t})
-            if(prob_label(i, 2) == 1)
-                now_true_num = now_true_num + 1;
-            end
-            if(now_true_num > threshold_num)
-                pos_num = pos_num + i;
-                true_pos = true_pos + now_true_num;
-                break;
-            end
-        end
-        
+%         prob_label = [y_pred Y{t}];
+%         prob_label = sortrows(prob_label, - 1);%default ascending, unless you are using 2017b
+%         
+%         true_label_num = sum(Y{t} == 1);
+%         threshold_num = Threshold*true_label_num;
+%         now_true_num = 0;
+%         for i = 1:length(Y{t})
+%             if(prob_label(i, 2) == 1)
+%                 now_true_num = now_true_num + 1;
+%             end
+%             if(now_true_num > threshold_num)
+%                 pos_num = pos_num + i;
+%                 true_pos = true_pos + now_true_num;
+%                 break;
+%             end
+%         end
+%         
         
         %mse = mse + (sum((y_pred - Y{t}).^2)/length(y_pred)) * length(y_pred);
         %mse = mse + sum((y_pred - Y{t}).^2); % length of y cancelled. 
         %total_sample = total_sample + length(y_pred);
     end
-    mse = true_pos / pos_num;
+    y_true = y_true > 0;
+    mse = corr(y, y_true); %actually is matthews
+    %mse = true_pos / pos_num;
     %mse = mse/total_sample;
 end

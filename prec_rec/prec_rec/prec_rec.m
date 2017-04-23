@@ -166,6 +166,7 @@ end
 if num_thresh < 0
     % set default for number of thresholds
     score_uniq = unique(score);
+    %num_thresh = min(length(score_uniq), 100);
     num_thresh = min(length(score_uniq), 100);
 end
 

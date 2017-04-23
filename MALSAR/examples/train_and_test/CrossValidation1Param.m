@@ -81,7 +81,7 @@ for cv_idx = 1: cv_fold
         [X_minority, Y_minority] = ADASYN(cv_Xtr{t}, cv_Ytr{t}, [], [], [], true);
         
         cv_Xtr{t} = [X_minority; X_majority];
-        cv_Ytr{t} = [Y_minority; Y_majority];
+        cv_Ytr{t} = double([Y_minority; Y_majority]);
         
         % set label 0 to - 1
         
@@ -95,15 +95,13 @@ for cv_idx = 1: cv_fold
         cv_Xte{t} = X{t}(te_idx, :);
         cv_Yte{t} = Y{t}(te_idx, :);
         
-        % set label 0 to - 1
-        cv_Yte{t}(cv_Yte{t} == 0) = -1;
-        
         
     end
     
     for p_idx = 1: length(param_range)
-        W = obj_func(cv_Xtr, cv_Ytr, param_range(p_idx), obj_func_opts);
-        perform_mat(p_idx) = perform_mat(p_idx) + eval_func(cv_Yte, cv_Xte, W);
+        [W, C, funcVal] = obj_func(cv_Xtr, cv_Ytr, param_range(p_idx), obj_func_opts);
+        %W = [W; c]
+        perform_mat(p_idx) = perform_mat(p_idx) + eval_func(cv_Yte, cv_Xte, W, C);
     end
 end
 perform_mat = perform_mat./cv_fold;
