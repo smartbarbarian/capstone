@@ -10,6 +10,7 @@ addpath('./MALSAR/functions/joint_feature_learning/'); % load function
 addpath('./MALSAR/utils/'); % load utilities
 addpath('../ADASYN_upd2');%load adasyn(extension of SMOTE)
 addpath('../prec_rec/prec_rec/')%load PRcruvr
+addpath('../fastBayesianMixtureOfExperts-master')%load 
 %%
 data = readtable('XD_PCA_P_Simp.csv','ReadRowNames',true);
 
@@ -21,53 +22,226 @@ PURTimeframe = categories(categorical(table2array(data(:,4))));
 Industry = categories(categorical(table2array(data(:,70))));
 
 
+%%%% meaningless
 AccountID2 = categories(categorical(table2array(data(:,69))));
 
+
+category_name = {JobTitle, Department, PURTimeframe, Industry};
+category_num = length(category_name);
+category_index = {categorical(table2array(data(:,2))), ...
+    categorical(table2array(data(:,3))), ...
+    categorical(table2array(data(:,4))), ...
+    categorical(table2array(data(:,70)))};
 %% newData without categories
 
 date = datenum(table2array(data(:, 1)), 'yyyy/mm/dd');
 label = double(strcmp(data.option1,'1'));
 row = height(data);
 employeeNum = zeros([row 1]);
-
 for t = 1:row
     employeeNum(t, 1) = str2double(data{t, 78});
 end
-temp = table2array(data(:, [5:68 71:75]));
-%temp = table2array(data(:, [5:7 9:68 71:75]));
+%temp = table2array(data(:, [5:68 71:75]));
+temp = table2array(data(:, [5:7 9:68 71:75]));
 newData = [date temp employeeNum];
+
 
 
 %dataWithNum = data(~strcmp(data.option3,'NULL'), :);
 %cat(1,dataWithNum{:, 78});
 %data(:, 1) = datenum(table2array(data(:, 1)), 'yyyy/mm/dd')
 %str2num
-%% partion
-task_num = length(PURTimeframe);
-X = cell([1 task_num]);
-Y = cell([1 task_num]);
-for t = 1: task_num
-    isSelected = strcmp(data.PURTimeframe, PURTimeframe(t));
-    
-    selected = newData(isSelected, :);
-    
-    isNan = isnan(selected(:, 71));
-    selected(~isNan, 71) = zscore(selected(~isNan,71));
-    selected(isNan, 71) = 0;
-    selected(:, 1:70) = zscore(selected(:, 1:70));
-    
-    %X{t} = selected;
-    X{t} = selected(:,[1:4 6:71]);
-    Y{t} = label(isSelected,:);
 
+
+%% split data into training and testing.
+training_percent = 0.7;
+
+sample_size = size(newData, 1);
+tSelIdx = randperm(sample_size) < sample_size * training_percent;
+    
+selIdx{t} = tSelIdx;
+
+trainData = newData(tSelIdx,:);
+trainTarget = label(tSelIdx,:);
+testData = newData(~tSelIdx,:);
+testTarget = label(~tSelIdx,:);
+train_category_index = cell(size(category_index));
+test_category_index = cell(size(category_index));
+for t = 1 : category_num
+    train_category_index{t} = category_index{t}(tSelIdx,:);
+    test_category_index{t} = category_index{t}(~tSelIdx,:);
 end
+
+
+%% partion and input
+%% Create BME
+BME = BMECreate('NumExperts', 3 , 'MaxIt', 20, 'EType', 'frvm', 'ENbf', 0.1, 'EKernel', 'linear', 'EKParam', 0.5, ...
+    'GType', 'mlr', 'GNbf', 0.1, 'GKernel', 'linear', 'GKParam', 0.5);
+
+
+%% decision tree
+% simpely convert catergory into numeric 
+% %sbmatlab = table(trainTarget, train_category_index{1}, train_category_index{2}, train_category_index{3}, train_category_index{4});
+% 
+% tree_X = table(train_category_index{1}, train_category_index{2}, train_category_index{3}, train_category_index{4});
+% 
+% tc = fitctree(tree_X, trainTarget, 'AlgorithmForCategorical', 'Exact','CrossVal','on','MaxNumSplits',16);
+% ens = fitcensemble(tree_X, trainTarget);
+% et = compact(ens);
+% 
+% tc = fitctree(tree_X, trainTarget,'CrossVal','on');
+% %
+% tc = fitctree(tree_X, trainTarget, 'AlgorithmForCategorical', 'Exact');
+% ctc = compact(tc);
+% %
+% view(tc,'Mode','graph');
+% 
+% %CutType,'categorical'
+
+%% BME.Gatings.Input
+
+
+
+gatings_mu = zeros([1 size(testData, 2)]);
+gatings_sigma = zeros([1 size(testData, 2)]);
+gatings_input = zeros(size(testData, 2));
+%%%because this column has missing value; 
+isNan = isnan(testData(:, 70));
+[gatings_input(~isNan, 70), gatings_mu(70), gatings_sigma(70)] = zscore(trainData(~isNan,70));
+testData(isNan, 70) = 0;
+[gatings_input(:, 1:69), gatings_mu(1:69), gatings_sigma(1:69)]  = zscore(trainData(:, 1:69));
+
+
+BME.Experts.Input = gatings_input;
+
+gatings_input = [ones(size(testData, 1), 1) gatings_input]; % add bias. 
+
+
+BME.Gatings.Input = gatings_input;
+
+
+
+
+
+%% BME.Experts.Input
+Input = cell([1, category_num]);
+train_target = cell([1, category_num]);
+
+experts_mu = cell([1, category_num]);
+experts_sigma = cell([1, category_num]);
+
+for i = 1 : category_num
+    task_num = length(category_name{i});
+    X = cell([1 task_num]);
+    Y = cell([1 task_num]);
+    mu = cell([1 task_num]);
+    sigma = cell([1 task_num]);
+    for t = 1: task_num
+        isSelected = strcmp(train_category_index{i}, category_name{i}(t));
+        
+        selected = trainData(isSelected, :);
+        mu{t} = zeros([1 size(selected, 2)]);
+        sigma{t} = zeros([1 size(selected, 2)]);
+        %%%because this column has missing value; 
+        isNan = isnan(selected(:, 70));
+        [selected(~isNan, 70), mu{t}(70), sigma{t}(70)] = zscore(selected(~isNan,70));
+        selected(isNan, 70) = 0;
+        [selected(:, 1:69), mu{t}(1:69), sigma{t}(1:69)]  = zscore(selected(:, 1:69));
+
+        %X{t} = selected;
+        X{t} = selected;
+        Y{t} = trainTarget(isSelected,:);
+    end
+    experts_mu{i} = mu;
+    experts_sigma{i} = sigma;
+    Input{i} = X;
+    train_target{i} = Y;
+end
+BME.Experts.MTLinput = Input;
+BME.Experts.MTLtarget = train_target;
+
+
+BME.Experts.Category_name = category_name;
+BME.Experts.Category_index = train_category_index;
+
+
+%% MOE test input
+%%%%%% expert
+test_expert_input = cell([1, category_num]);
+test_expert_target = cell([1, category_num]);
+
+for i = 1 : category_num
+    task_num = length(category_name{i});
+    X = cell([1 task_num]);
+    Y = cell([1 task_num]);
+    mu = test_mu{i};
+    sigma = test_sigma{i};
+    for t = 1: task_num
+        isSelected = strcmp(train_category_index{i}, category_name{i}(t));
+        
+        selected = testData(isSelected, :);
+        mu{t} = zeros([1 size(selected, 2)]);
+        sigma{t} = zeros([1 size(selected, 2)]);
+        %%%because this column has missing value; 
+        isNan = isnan(selected(:, 70));
+        selected(~isNan, 70) = (selected(~isNan,70) - mu{t}(70)) / sigma{t}(70);
+        selected(isNan, 70) = 0;
+        selected(:, 1:69) = (selected(:, 1:69) - mu{t}(1:69)) / sigma{t}(1:69);
+
+        X{t} = selected;
+        Y{t} = testTarget(isSelected,:);
+    end
+    test_expert_input{i} = X;
+    test_expert_target{i} = Y;
+end
+
+
+BME.Test.EInput = test_expert_input;
+
+%%%% gateing
+
+
+gatings_mu = zeros([1 size(testData, 2)]);
+gatings_sigma = zeros([1 size(testData, 2)]);
+test_gatings_input = zeros(size(testData, 2));
+%%%because this column has missing value; 
+isNan = isnan(testData(:, 70));
+test_gatings_input(~isNan, 70) = (testData(~isNan,70)- gatings_mu(70)) / gatings_sigma(70);
+%testData(isNan, 70) = 0;
+test_gatings_input(:, 1:69)  = testData(:, 1:69) - gatings_mu(1 : 69) / gatings_sigma(70);
+test_gatings_input = [ones(size(testData, 1), 1) gatings_input]; % add bias. 
+
+
+BME.Test.GInput = test_gatings_input;
+
+
+
+
+
+
+%% MOE
+BME = BMETrain(BME, Target, Target) ;
+
+
+
+
+
+
+
+
 
 %% test
-Y_sum = zeros([1 task_num]);
-for t = 1: task_num
-    Y_sum(t) = sum(Y{t});
 
-end
+
+
+
+
+
+% Y_sum = zeros([1 task_num]);
+% for t = 1: task_num
+%     Y_sum(t) = sum(Y{t});
+% 
+% end
 
 % %% preprocessing data
 % %aaa(~isnan(aaa(:,71)),71) = zscore(aaa(~isnan(aaa(:,71)),71))
@@ -79,9 +253,8 @@ end
 
 
 
-%% split data into training and testing.
-training_percent = 0.7;
-[X_tr, Y_tr, X_te, Y_te] = mtSplitPerc(X, Y, training_percent);
+
+% [X_tr, Y_tr, X_te, Y_te] = mtSplitPerc(X, Y, training_percent);
 
 
 %move this step to crossvalidation
@@ -174,7 +347,7 @@ for i = 1:row
         mean_temp = mean(temp);
         std_temp = std(temp);
         W_mean(i, j) = mean_temp;
-        [h,p]= ztest(0, mean_temp, std_temp); 
+        [h,p]= ztest(0, mean_temp, std_temp);
         p_value(i, j) = p;
     end
 end
@@ -192,7 +365,7 @@ for t = 1: length(X)
     %Y_prob{t} = glmval(W(:, t), X_te{t}, 'logit');
     prec_rec(Y_prob{t}, Y_te{t}, 'plotPR', 1, 'plotROC', 0, 'holdFigure', 1);
 end
- 
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

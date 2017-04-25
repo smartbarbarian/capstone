@@ -48,7 +48,7 @@
 %  Least_L21, init_opts
 
 %% Code starts here
-function [W, C, funcVal] = Logistic_L21(X, Y, rho1, opts)
+function [W, C, funcVal] = Logistic_L21(X, Y, rho1, opts, Grad)
 
 if nargin <3
     error('\n Inputs: X, Y, rho1, should be specified!\n');
@@ -59,6 +59,12 @@ if nargin <4
     opts = [];
 end
 
+if nargin < 5
+    Grad = ones(length(Y));
+    for t = 1 : length(Y)
+        Grad{t} = ones(size(Y{t}));
+    end    
+end
 % initialize options.
 opts=init_opts(opts);
 
@@ -129,8 +135,7 @@ while iter < opts.maxIter
     Cs = (1 + alpha) * Cz - alpha * Cz_old;
     
     % compute function value and gradients of the search point
-    [gWs, gCs, Fs ]  = gradVal_eval(Ws, Cs);
-    
+    [gWs, gCs, Fs ]  = gradVal_eval(Ws, Cs, Grad);
     % the Armijo Goldstein line search scheme
     while true
         Wzp = FGLasso_projection(Ws - gWs/gamma, rho1 / gamma);
@@ -218,11 +223,11 @@ C = Czp;
         lossValVect = zeros (1 , task_num);
         if opts.pFlag
             parfor i = 1:task_num
-                [ grad_W(:, i), grad_C(:, i), lossValVect(:, i)] = unit_grad_eval( W(:, i), C(i), X{i}, Y{i});
+                [ grad_W(:, i), grad_C(:, i), lossValVect(:, i)] = unit_grad_eval( W(:, i), C(i), X{i}, Y{i}, Grad{i});
             end
         else
             for i = 1:task_num
-                [ grad_W(:, i), grad_C(:, i), lossValVect(:, i)] = unit_grad_eval( W(:, i), C(i), X{i}, Y{i});
+                [ grad_W(:, i), grad_C(:, i), lossValVect(:, i)] = unit_grad_eval( W(:, i), C(i), X{i}, Y{i}, Grad{i});
             end
         end
         grad_W = grad_W + rho_L2 * 2 * W;
@@ -257,8 +262,9 @@ C = Czp;
     end
 end
 
-function [ grad_w, grad_c, funcVal ] = unit_grad_eval( w, c, x, y)
+function [ grad_w, grad_c, funcVal ] = unit_grad_eval( w, c, x, y, grad)
 %gradient and logistic evaluation for each task
+% grad = - x(i,j)*y(i)*exp-Y*(W * X) / (1 + exp-Y*(W * X))
 m = length(y);
 weight = ones(m, 1)/m;
 weighty = weight.* y;
@@ -267,6 +273,7 @@ bb = max( aa, 0);
 funcVal = weight'* ( log( exp(-bb) +  exp(aa-bb) ) + bb );
 pp = 1./ (1+exp(aa));
 b = -weighty.*(1-pp);
+b = b .* grad;
 grad_c = sum(b);
 grad_w = x * b;
 end
