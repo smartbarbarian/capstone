@@ -10,14 +10,18 @@
 % use of this software. You can run it at your own risk.             %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function [MAE, PMAE, Predictions, MPredictions] = BMETest(EInput, GInput, Target, BME)
+function [MAE, PMAE, Predictions, MPredictions] = BMETest(EInput, ECategory_index, GInput, Target, BME)
 
 %% Test
 N = size(GInput,1);
 Num = BME.Test.NumExperts;
 
-%ExpertsMeans = BMEExpertsMeans(EInput,BME);
-ExpertsMeans = BME.Experts.Means;
+ExpertsWeights = BME.Experts.Weights;
+ExpertsCategory_name = BME.Experts.Category_name;
+
+ExpertsMeans = BMEExpertsMeans(EInput,ExpertsWeights, ExpertsCategory_name, ECategory_index);
+    );
+%ExpertsMeans = BME.Experts.Means;
 
 GatingsOutputs = exp(GInput*BME.Gatings.Weights);
 [values, index] = sort(GatingsOutputs,2,'descend');

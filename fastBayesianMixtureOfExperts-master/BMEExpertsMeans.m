@@ -10,12 +10,12 @@
 % use of this software. You can run it at your own risk.             %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function ExpertsMeans = BMEExpertsMeans(BME)
+function ExpertsMeans = BMEExpertsMeans(inputs, weights, category_names, category_indexs)
 %% Compute the mean of experts
-category_names = BME.Experts.Category_name;
-category_indexs = BME.Experts.Category_index;
-weights = BME.Experts.Weights;
-inputs = BME.Experts.MTLinput;
+% category_names = BME.Experts.Category_name;
+% category_indexs = BME.Experts.Category_index;
+% weights = BME.Experts.Weights;
+% inputs = BME.Experts.MTLinput;
 col = length(category_names);% expert num
 row = size(BME.Experts.Input, 1);
 ExpertsMeans = zeros([row, col]);

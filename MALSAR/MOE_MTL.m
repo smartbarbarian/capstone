@@ -177,7 +177,7 @@ for i = 1 : category_num
     mu = test_mu{i};
     sigma = test_sigma{i};
     for t = 1: task_num
-        isSelected = strcmp(train_category_index{i}, category_name{i}(t));
+        isSelected = strcmp(test_category_index{i}, category_name{i}(t));
         
         selected = testData(isSelected, :);
         mu{t} = zeros([1 size(selected, 2)]);
@@ -195,8 +195,9 @@ for i = 1 : category_num
     test_expert_target{i} = Y;
 end
 
-
+test_expert_target;
 BME.Test.EInput = test_expert_input;
+BME.Test.ECategory_index = test_category_index;
 
 %%%% gateing
 
@@ -220,7 +221,7 @@ BME.Test.GInput = test_gatings_input;
 
 
 %% MOE
-BME = BMETrain(BME, Target, Target) ;
+BME = BMETrain(BME, trainTarget, testTarget) ;
 
 
 
