@@ -1,6 +1,6 @@
-clear;
-clc;
-close;
+% clear;
+% clc;
+% close;
 cd '/Users/palejustice/Documents/capstone/MALSAR';
 addpath('./MALSAR/functions/Lasso/'); % load function
 addpath('./MALSAR/functions/SRMTL/'); % load function
@@ -27,7 +27,7 @@ AccountID2 = categories(categorical(table2array(data(:,69))));
 
 
 category_name = {JobTitle, Department, PURTimeframe, Industry};
-category_num = length(category_name);
+expert_num = length(category_name);
 category_index = {categorical(table2array(data(:,2))), ...
     categorical(table2array(data(:,3))), ...
     categorical(table2array(data(:,4))), ...
@@ -67,7 +67,7 @@ testData = newData(~tSelIdx,:);
 testTarget = label(~tSelIdx,:);
 train_category_index = cell(size(category_index));
 test_category_index = cell(size(category_index));
-for t = 1 : category_num
+for t = 1 : expert_num
     train_category_index{t} = category_index{t}(tSelIdx,:);
     test_category_index{t} = category_index{t}(~tSelIdx,:);
 end
@@ -75,7 +75,7 @@ end
 
 %% partion and input
 %% Create BME
-BME = BMECreate('NumExperts', 3 , 'MaxIt', 20, 'EType', 'frvm', 'ENbf', 0.1, 'EKernel', 'linear', 'EKParam', 0.5, ...
+BME = BMECreate('NumExperts', expert_num , 'MaxIt', 20, 'EType', 'mtl', 'ENbf', 0.1, 'EKernel', 'linear', 'EKParam', 0.5, ...
     'GType', 'mlr', 'GNbf', 0.1, 'GKernel', 'linear', 'GKParam', 0.5);
 
 
@@ -98,55 +98,68 @@ BME = BMECreate('NumExperts', 3 , 'MaxIt', 20, 'EType', 'frvm', 'ENbf', 0.1, 'EK
 % 
 % %CutType,'categorical'
 
+
+
 %% BME.Gatings.Input
 
 
 
-gatings_mu = zeros([1 size(testData, 2)]);
-gatings_sigma = zeros([1 size(testData, 2)]);
-gatings_input = zeros(size(testData, 2));
+gatings_mu = zeros([1 size(trainData, 2)]);
+gatings_sigma = zeros([1 size(trainData, 2)]);
+gatings_input = zeros(size(trainData, 2));
 %%%because this column has missing value; 
-isNan = isnan(testData(:, 70));
-[gatings_input(~isNan, 70), gatings_mu(70), gatings_sigma(70)] = zscore(trainData(~isNan,70));
-testData(isNan, 70) = 0;
-[gatings_input(:, 1:69), gatings_mu(1:69), gatings_sigma(1:69)]  = zscore(trainData(:, 1:69));
 
+for j = 1:size(trainData, 2)
+    isNan = isnan(trainData(:, j));
+    [gatings_input(~isNan, j), gatings_mu(j), gatings_sigma(j)] = zscore(trainData(~isNan,j));
+end
 
-BME.Experts.Input = gatings_input;
+% isNan = isnan(trainData(:, 70));
+% [gatings_input(~isNan, 70), gatings_mu(70), gatings_sigma(70)] = zscore(trainData(~isNan,70));
+% trainData(isNan, 70) = 0;
+% [gatings_input(:, 1:69), gatings_mu(1:69), gatings_sigma(1:69)]  = zscore(trainData(:, 1:69));
+% 
 
-gatings_input = [ones(size(testData, 1), 1) gatings_input]; % add bias. 
+%BME.Experts.Input = gatings_input;
 
+%gatings_input = [ones(size(testData, 1), 1) gatings_input]; % add bias. 
+GInput = gatings_input;
 
-BME.Gatings.Input = gatings_input;
+%BME.Gatings.Input = gatings_input;
 
 
 
 
 
 %% BME.Experts.Input
-Input = cell([1, category_num]);
-train_target = cell([1, category_num]);
+EInput = cell([1, expert_num]);
+MTLTarget = cell([1, expert_num]); % mtl target
 
-experts_mu = cell([1, category_num]);
-experts_sigma = cell([1, category_num]);
+experts_mu = cell([1, expert_num]);
+experts_sigma = cell([1, expert_num]);
 
-for i = 1 : category_num
+for i = 1 : expert_num
     task_num = length(category_name{i});
     X = cell([1 task_num]);
     Y = cell([1 task_num]);
     mu = cell([1 task_num]);
     sigma = cell([1 task_num]);
     for t = 1: task_num
-        isSelected = strcmp(train_category_index{i}, category_name{i}(t));
+        isSelected = ismember(train_category_index{i}, category_name{i}(t));
         
         selected = trainData(isSelected, :);
         mu{t} = zeros([1 size(selected, 2)]);
         sigma{t} = zeros([1 size(selected, 2)]);
         %%%because this column has missing value; 
-        isNan = isnan(selected(:, 70));
-        [selected(~isNan, 70), mu{t}(70), sigma{t}(70)] = zscore(selected(~isNan,70));
-        selected(isNan, 70) = 0;
-        [selected(:, 1:69), mu{t}(1:69), sigma{t}(1:69)]  = zscore(selected(:, 1:69));
+        for j = 1:size(selected, 2)
+            isNan = isnan(selected(:, j));
+            [selected(~isNan, j), mu{t}(j), sigma{t}(j)] = zscore(selected(~isNan,j));
+            selected(isNan, j) = 0;
+        end
+%         isNan = isnan(selected(:, 70));
+%         [selected(~isNan, 70), mu{t}(70), sigma{t}(70)] = zscore(selected(~isNan,70));
+%         selected(isNan, 70) = 0;
+%         [selected(:, 1:69), mu{t}(1:69), sigma{t}(1:69)]  = zscore(selected(:, 1:69));
 
         %X{t} = selected;
         X{t} = selected;
@@ -154,76 +167,136 @@ for i = 1 : category_num
     end
     experts_mu{i} = mu;
     experts_sigma{i} = sigma;
-    Input{i} = X;
-    train_target{i} = Y;
+    EInput{i} = X;
+    MTLTarget{i} = Y;
 end
-BME.Experts.MTLinput = Input;
-BME.Experts.MTLtarget = train_target;
+%BME.Experts.Alpha = 1;
 
 
-BME.Experts.Category_name = category_name;
-BME.Experts.Category_index = train_category_index;
+%BME.Experts.Input = Input;
+
+
+
+
+%BME.Experts.Category_name = category_name;
+Category_name = category_name;
+
+%BME.Experts.Category_index = train_category_index;
+ECategory_index = train_category_index;
 
 
 %% MOE test input
 %%%%%% expert
-test_expert_input = cell([1, category_num]);
-test_expert_target = cell([1, category_num]);
+test_expert_input = cell([1, expert_num]);
+test_expert_target = cell([1, expert_num]);
 
-for i = 1 : category_num
+for i = 1 : expert_num
     task_num = length(category_name{i});
     X = cell([1 task_num]);
     Y = cell([1 task_num]);
-    mu = test_mu{i};
-    sigma = test_sigma{i};
+    mu = experts_mu{i};
+    sigma = experts_sigma{i};
     for t = 1: task_num
-        isSelected = strcmp(test_category_index{i}, category_name{i}(t));
+        isSelected = ismember(test_category_index{i}, category_name{i}(t));
         
         selected = testData(isSelected, :);
-        mu{t} = zeros([1 size(selected, 2)]);
-        sigma{t} = zeros([1 size(selected, 2)]);
         %%%because this column has missing value; 
-        isNan = isnan(selected(:, 70));
-        selected(~isNan, 70) = (selected(~isNan,70) - mu{t}(70)) / sigma{t}(70);
-        selected(isNan, 70) = 0;
-        selected(:, 1:69) = (selected(:, 1:69) - mu{t}(1:69)) / sigma{t}(1:69);
-
+        for j = 1:size(selected, 2)
+            isNan = isnan(selected(:, j));
+            if sigma{t}(j) == 0 
+                selected(~isNan, j) = (selected(~isNan,j) - gatings_mu(j)) / gatings_sigma(j);
+            else    
+                selected(~isNan, j) = (selected(~isNan,j) - mu{t}(j)) / sigma{t}(j);
+            end    
+            selected(isNan, j) = 0;
+        end
         X{t} = selected;
         Y{t} = testTarget(isSelected,:);
     end
     test_expert_input{i} = X;
     test_expert_target{i} = Y;
 end
-
+%%
 test_expert_target;
-BME.Test.EInput = test_expert_input;
-BME.Test.ECategory_index = test_category_index;
+
+TestEInput = test_expert_input;
+%BME.Test.EInput = test_expert_input;
+TestECategory_index = test_category_index;
+%BME.Test.ECategory_index = test_category_index;
 
 %%%% gateing
 
 
-gatings_mu = zeros([1 size(testData, 2)]);
-gatings_sigma = zeros([1 size(testData, 2)]);
 test_gatings_input = zeros(size(testData, 2));
 %%%because this column has missing value; 
-isNan = isnan(testData(:, 70));
-test_gatings_input(~isNan, 70) = (testData(~isNan,70)- gatings_mu(70)) / gatings_sigma(70);
-%testData(isNan, 70) = 0;
-test_gatings_input(:, 1:69)  = testData(:, 1:69) - gatings_mu(1 : 69) / gatings_sigma(70);
-test_gatings_input = [ones(size(testData, 1), 1) gatings_input]; % add bias. 
+for j = 1:size(testData, 2)
+    isNan = isnan(testData(:, j));
+    test_gatings_input(~isNan, j) = (testData(~isNan,j) - gatings_mu(j)) / gatings_sigma(j);  
+end
+
+% isNan = isnan(testData(:, 70));
+% test_gatings_input(~isNan, 70) = (testData(~isNan,70)- gatings_mu(70)) / gatings_sigma(70);
+% %testData(isNan, 70) = 0;
+% test_gatings_input(:, 1:69)  = testData(:, 1:69) - gatings_mu(1 : 69) / gatings_sigma(70);
+% %test_gatings_input = [ones(size(testData, 1), 1) gatings_input]; % add bias. 
+
+TestGInput = test_gatings_input;
+%BME.Test.GInput = test_gatings_input;
+
+%% Expert parameter
+%EParam = zeros ([1 expert_num]);
+%JobTitle/ Department/ PURTimeframe/ Industry
+%you need to modify by you self
+%%set parameter 
+%the function used for evaluation.
+eval_func_str = 'eval_MTL_matthews';
+higher_better = true;  %  correlation is higher the better.
+
+% cross validation fold
+cv_fold = 5;
+
+%rng('default');     % reset random generator. Available from Matlab 2011.
+opts.init = 0;      % guess start point from data. 
+opts.tFlag = 1;     % terminate after relative objective value does not changes much.
+opts.tol = 10^-5;   % tolerance. 
+opts.maxIter = 1000; % maximum iteration number of optimization.
+
+%model parameter range
+%param_range = [0.000001 0.00001 0.0001 0.001];
+%param_range = [1e-9, 1e-8, 1e-7, 1e-6];
+param_range = [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3]
+EParam = cell([1 expert_num]);
+PerformMat = cell([1 expert_num]);
+%crossvalidation
+for i = 1 : expert_num
+    X = EInput{i};
+    Y = MTLTarget{i};
+    fprintf('Perform model selection via cross validation: \n')
+    [ best_param, perform_mat] = CrossValidation1Param...
+        ( X, Y, 'Logistic_L21', opts, param_range, cv_fold, eval_func_str, higher_better);
+    EParam{i} = best_param;
+    PerformMat{i} = perform_mat;
+end
 
 
-BME.Test.GInput = test_gatings_input;
+%EParam = {1e-05, 1e-07, 1e-05, 1e-04};
+BME.Experts.Param = EParam;
 
 
-
-
+%% BMEInit
+%% Initialize BME using kmeans clustering
+BME = BMEInit(BME, EInput, Category_name, ECategory_index, EParam, GInput, trainTarget, TestEInput, TestECategory_index, TestGInput) ; 
 
 
 %% MOE
-BME = BMETrain(BME, trainTarget, testTarget) ;
 
+% w = warning('query','last');
+% id = w.identifier;
+% warning('off',id) ;
 
+BME = BMETrain(BME, MTLTarget, trainTarget, testTarget) ;
+% MTLTarget ----- mtl structured target
+% trainTarget ----- normal target MTLTarget
 
 
 
@@ -273,163 +346,163 @@ BME = BMETrain(BME, trainTarget, testTarget) ;
 % end
 
 
-
-%%set parameter 
-%the function used for evaluation.
-eval_func_str = 'eval_MTL_matthews';
-higher_better = true;  %  correlation is higher the better.
-
-
-% cross validation fold
-cv_fold = 5;
-
-
-
-
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%l21%%%%%%%%%
-
-%rng('default');     % reset random generator. Available from Matlab 2011.
-opts.init = 0;      % guess start point from data. 
-opts.tFlag = 1;     % terminate after relative objective value does not changes much.
-opts.tol = 10^-5;   % tolerance. 
-opts.maxIter = 1000; % maximum iteration number of optimization.
-
-
-
-
-%% model parameter range
-param_range = [0.00001 0.00005 0.0001];
-% crossvalidation
-fprintf('Perform model selection via cross validation: \n')
-[ best_param, perform_mat] = CrossValidation1Param...
-    ( X_tr, Y_tr, 'Logistic_L21', opts, param_range, cv_fold, eval_func_str, higher_better);
-
-%disp(perform_mat) % show the performance for each parameter.
-
-
-%% build model using the optimal parameter 
-%% caculate the p_value of coefficient
-test_num = 10; % the num of product
-W_sum = cell([1 test_num]);
-X_tr_ba = cell([1 task_num]);
-Y_tr_ba = cell([1 task_num]);
-for t = 1: task_num
-    X_majority = X_tr{t}(Y_tr{t}(:,1) == 0, :);
-    Y_majority = Y_tr{t}(Y_tr{t}(:,1) == 0, :);
-
-    [X_minority, Y_minority] = ADASYN(X_tr{t}, Y_tr{t}, [], [], [], true);
-
-    X_tr_ba{t} = [X_minority; X_majority];
-    Y_tr_ba{t} = double([Y_minority; Y_majority]);
-    Y_tr_ba{t}(Y_tr_ba{t} == 0) = - 1;
-end
-%% test
-[W, C, funcVal] = Logistic_L21(X_tr_ba, Y_tr_ba, best_param, opts);
-cor_MTL2 = eval_MTL_matthews(Y_te, X_te, W, C);
-
-%% p_value
-for t = 1:test_num
-    [W, C, funcVal] = Logistic_L21(X_tr_ba, Y_tr_ba, best_param, opts);
-    W_sum{t} = W;
-end
-
-p_value = zeros(size(W));
-W_mean = zeros(size(W));
-[row, col] = size(W);
-for i = 1:row
-    for j = 1:col
-        temp = zeros([1 test_num]);
-        for t = 1:test_num
-            temp(t) = W_sum{t}(i,j);
-        end
-        mean_temp = mean(temp);
-        std_temp = std(temp);
-        W_mean(i, j) = mean_temp;
-        [h,p]= ztest(0, mean_temp, std_temp);
-        p_value(i, j) = p;
-    end
-end
-
-
-
-
-
-
-
-%% prec_recall figure
-Y_prob = cell(size(Y_te));
-for t = 1: length(X)
-    Y_prob{t} = glmval([C(t); W(:, t)], X_te{t}, 'logit','constant','on');
-    %Y_prob{t} = glmval(W(:, t), X_te{t}, 'logit');
-    prec_rec(Y_prob{t}, Y_te{t}, 'plotPR', 1, 'plotROC', 0, 'holdFigure', 1);
-end
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-%%%%%%%%%%%lasso%%%%%%%%%%
 % 
-% param_range = [1 10 100 200 500 1000 2000]; %lamda
+% %%set parameter 
+% %the function used for evaluation.
+% eval_func_str = 'eval_MTL_matthews';
+% higher_better = true;  %  correlation is higher the better.
+% 
+% 
+% % cross validation fold
+% cv_fold = 5;
+% 
+% 
+% 
+% 
+% 
+% 
+% 
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%l21%%%%%%%%%
 % 
 % %rng('default');     % reset random generator. Available from Matlab 2011.
 % opts.init = 0;      % guess start point from data. 
 % opts.tFlag = 1;     % terminate after relative objective value does not changes much.
 % opts.tol = 10^-5;   % tolerance. 
-% opts.maxIter = 1500; % maximum iteration number of optimization.
+% opts.maxIter = 1000; % maximum iteration number of optimization.
 % 
 % 
+% 
+% 
+% %% model parameter range
+% param_range = [0.00001 0.00005 0.0001];
+% % crossvalidation
 % fprintf('Perform model selection via cross validation: \n')
 % [ best_param, perform_mat] = CrossValidation1Param...
-%     ( X_tr, Y_tr, 'Logistic_Lasso', opts, param_range, cv_fold, eval_func_str, higher_better);
+%     ( X_tr, Y_tr, 'Logistic_L21', opts, param_range, cv_fold, eval_func_str, higher_better);
 % 
 % %disp(perform_mat) % show the performance for each parameter.
 % 
-% % build model using the optimal parameter 
-% [W, c, funcVal] = Logistic_L21(X_tr, Y_tr, best_param, opts);
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-
 % 
-% % show final performance
-% eval_func = str2func(eval_func_str);
-% final_performance = eval_func(Y_te, X_te, W);
-% fprintf('Performance on test data: %.4f\n', final_performance);
-
-
-
+% %% build model using the optimal parameter 
+% %% caculate the p_value of coefficient
+% test_num = 10; % the num of product
+% W_sum = cell([1 test_num]);
+% X_tr_ba = cell([1 task_num]);
+% Y_tr_ba = cell([1 task_num]);
+% for t = 1: task_num
+%     X_majority = X_tr{t}(Y_tr{t}(:,1) == 0, :);
+%     Y_majority = Y_tr{t}(Y_tr{t}(:,1) == 0, :);
 % 
+%     [X_minority, Y_minority] = ADASYN(X_tr{t}, Y_tr{t}, [], [], [], true);
 % 
-% d = size(X{1}, 2);  % dimensionality.
+%     X_tr_ba{t} = [X_minority; X_majority];
+%     Y_tr_ba{t} = double([Y_minority; Y_majority]);
+%     Y_tr_ba{t}(Y_tr_ba{t} == 0) = - 1;
+% end
+% %% test
+% [W, C, funcVal] = Logistic_L21(X_tr_ba, Y_tr_ba, best_param, opts);
+% cor_MTL2 = eval_MTL_matthews(Y_te, X_te, W, C);
 % 
-% lambda = [200 :300: 1500];
-% % 
-% sparsity = zeros(length(lambda), 1);
-% log_lam  = log(lambda);
-% 
-% for i = 1: length(lambda)
-%     [W funcVal] = Least_L21(X, Y, lambda(i), opts);
-%     % set the solution as the next initial point. 
-%     % this gives better efficiency. 
-%     opts.init = 1;
-%     opts.W0 = W;
-%     sparsity(i) = nnz(sum(W,2 )==0)/d;
+% %% p_value
+% for t = 1:test_num
+%     [W, C, funcVal] = Logistic_L21(X_tr_ba, Y_tr_ba, best_param, opts);
+%     W_sum{t} = W;
 % end
 % 
-% % draw figure
-% h = figure;
-% plot(log_lam, sparsity);
-% xlabel('log(\rho_1)')
-% ylabel('Row Sparsity of Model (Percentage of All-Zero Columns)')
-% title('Row Sparsity of Predictive Model when Changing Regularization Parameter');
-% set(gca,'FontSize',12);
-% print('-dpdf', '-r100', 'LeastL21Exp');
+% p_value = zeros(size(W));
+% W_mean = zeros(size(W));
+% [row, col] = size(W);
+% for i = 1:row
+%     for j = 1:col
+%         temp = zeros([1 test_num]);
+%         for t = 1:test_num
+%             temp(t) = W_sum{t}(i,j);
+%         end
+%         mean_temp = mean(temp);
+%         std_temp = std(temp);
+%         W_mean(i, j) = mean_temp;
+%         [h,p]= ztest(0, mean_temp, std_temp);
+%         p_value(i, j) = p;
+%     end
+% end
+% 
+% 
+% 
+% 
+% 
+% 
+% 
+% %% prec_recall figure
+% Y_prob = cell(size(Y_te));
+% for t = 1: length(X)
+%     Y_prob{t} = glmval([C(t); W(:, t)], X_te{t}, 'logit','constant','on');
+%     %Y_prob{t} = glmval(W(:, t), X_te{t}, 'logit');
+%     prec_rec(Y_prob{t}, Y_te{t}, 'plotPR', 1, 'plotROC', 0, 'holdFigure', 1);
+% end
+% 
+% 
+% 
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 
+% 
+% %%%%%%%%%%%lasso%%%%%%%%%%
+% % 
+% % param_range = [1 10 100 200 500 1000 2000]; %lamda
+% % 
+% % %rng('default');     % reset random generator. Available from Matlab 2011.
+% % opts.init = 0;      % guess start point from data. 
+% % opts.tFlag = 1;     % terminate after relative objective value does not changes much.
+% % opts.tol = 10^-5;   % tolerance. 
+% % opts.maxIter = 1500; % maximum iteration number of optimization.
+% % 
+% % 
+% % fprintf('Perform model selection via cross validation: \n')
+% % [ best_param, perform_mat] = CrossValidation1Param...
+% %     ( X_tr, Y_tr, 'Logistic_Lasso', opts, param_range, cv_fold, eval_func_str, higher_better);
+% % 
+% % %disp(perform_mat) % show the performance for each parameter.
+% % 
+% % % build model using the optimal parameter 
+% % [W, c, funcVal] = Logistic_L21(X_tr, Y_tr, best_param, opts);
+% 
+% 
+% 
+% %%%%%%%%%%%%%%%%%%%%%%%%%
+% 
+% 
+% 
+% 
+% % 
+% % % show final performance
+% % eval_func = str2func(eval_func_str);
+% % final_performance = eval_func(Y_te, X_te, W);
+% % fprintf('Performance on test data: %.4f\n', final_performance);
+% 
+% 
+% 
+% % 
+% % 
+% % d = size(X{1}, 2);  % dimensionality.
+% % 
+% % lambda = [200 :300: 1500];
+% % % 
+% % sparsity = zeros(length(lambda), 1);
+% % log_lam  = log(lambda);
+% % 
+% % for i = 1: length(lambda)
+% %     [W funcVal] = Least_L21(X, Y, lambda(i), opts);
+% %     % set the solution as the next initial point. 
+% %     % this gives better efficiency. 
+% %     opts.init = 1;
+% %     opts.W0 = W;
+% %     sparsity(i) = nnz(sum(W,2 )==0)/d;
+% % end
+% % 
+% % % draw figure
+% % h = figure;
+% % plot(log_lam, sparsity);
+% % xlabel('log(\rho_1)')
+% % ylabel('Row Sparsity of Model (Percentage of All-Zero Columns)')
+% % title('Row Sparsity of Predictive Model when Changing Regularization Parameter');
+% % set(gca,'FontSize',12);
+% % print('-dpdf', '-r100', 'LeastL21Exp');

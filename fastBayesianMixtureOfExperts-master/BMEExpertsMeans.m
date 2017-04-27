@@ -16,9 +16,15 @@ function ExpertsMeans = BMEExpertsMeans(inputs, weights, category_names, categor
 % category_indexs = BME.Experts.Category_index;
 % weights = BME.Experts.Weights;
 % inputs = BME.Experts.MTLinput;
+
 col = length(category_names);% expert num
-row = size(BME.Experts.Input, 1);
+%col = BME.NumExperts;
+
+%row = size(BME.Gatings.Input, 1);
+row = size(category_indexs{1}, 1);
+
 ExpertsMeans = zeros([row, col]);
+
 for i = 1 : col
     input = inputs{i};
     category_name = category_names{i};
@@ -31,8 +37,8 @@ for i = 1 : col
         %output = input{j}*weight{j};
         
         output = glmval(weight(:, j), input{j}, 'logit','constant','on');
-        isSelected = strcmp(category_index, category_name(j));
-        ExpertsMeans(i, isSelected) = output;
+        isSelected = ismember(category_index, category_name(j));
+        ExpertsMeans(isSelected, i) = output;
     end
 end
 

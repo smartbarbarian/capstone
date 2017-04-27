@@ -60,7 +60,7 @@ if nargin <4
 end
 
 if nargin < 5
-    Grad = ones(length(Y));
+    Grad = cell(size(Y));
     for t = 1 : length(Y)
         Grad{t} = ones(size(Y{t}));
     end    
@@ -217,7 +217,7 @@ C = Czp;
         X = repmat(max(0, 1 - lambda./sqrt(sum(D.^2,2))),1,size(D,2)).*D;
     end
 
-    function [grad_W, grad_C, funcVal] = gradVal_eval(W, C)
+    function [grad_W, grad_C, funcVal] = gradVal_eval(W, C, Grad)
         grad_W = zeros(dimension, task_num);
         grad_C = zeros(1, task_num);
         lossValVect = zeros (1 , task_num);

@@ -43,11 +43,11 @@ newData = [date temp employeeNum];
 %data(:, 1) = datenum(table2array(data(:, 1)), 'yyyy/mm/dd')
 %str2num
 %% partion
-task_num = length(PURTimeframe);
+task_num = length(JobTitle);
 X = cell([1 task_num]);
 Y = cell([1 task_num]);
 for t = 1: task_num
-    isSelected = strcmp(data.PURTimeframe, PURTimeframe(t));
+    isSelected = strcmp(data.JobTitle, JobTitle(t));
     
     selected = newData(isSelected, :);
     
@@ -127,7 +127,7 @@ opts.maxIter = 1000; % maximum iteration number of optimization.
 
 
 %% model parameter range
-param_range = [0.00001 0.00005 0.0001];
+param_range = [0.000001 0.00001 0.0001 0.001];
 % crossvalidation
 fprintf('Perform model selection via cross validation: \n')
 [ best_param, perform_mat] = CrossValidation1Param...

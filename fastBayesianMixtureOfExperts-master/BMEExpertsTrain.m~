@@ -28,7 +28,7 @@ switch lower(BME.Experts.Type)
         
         
         
-        gradient = BME.Experts.Alpha*(GatingPosterior.^0.5);%actually it's the prefix of the gradient
+        gradient = BME.Experts.Alpha*GatingPosterior;%actually it's the prefix of the gradient
         
         task_num = length(category_name);
         Grad = cell([1, task_num]);
@@ -38,8 +38,8 @@ switch lower(BME.Experts.Type)
             selected = gradient(isSelected, :);
             Grad{t} = selected;
         end
-        
-        ExpertWeight = Grad_MTL(Input, target, param, Grad);
+        %% balance
+        ExpertWeight = Grad_MTL(Input, Target, param, Grad);
         BME.Experts.Weights{i} = ExpertWeight;
         
         

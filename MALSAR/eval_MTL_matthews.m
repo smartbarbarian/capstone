@@ -19,13 +19,14 @@ function coefficient = eval_MTL_matthews(Y, X, W, C)
           
           %y_pred = glmval(W(:, t), X{t}, 'logit','constant','off');
           % y_pred = glmval(W(:, t), X{t}, 'logit');
-          
-          y_pred = glmval(W(:, t), X{t}, 'logit','constant','on');
-          y_label = y_pred >= 0.5;
-          
-          y(start : start + length(X{t}) - 1) = y_label;
-          y_true(start : start + length(X{t}) - 1) = Y{t};
-          start = start + length(X{t});
+          if ~isempty(X{t})
+              y_pred = glmval(W(:, t), X{t}, 'logit','constant','on');
+              y_label = y_pred >= 0.5;
+              len = size(X{t}, 1);
+              y(start : start + len - 1) = y_label;
+              y_true(start : start + len - 1) = Y{t};
+              start = start + len;
+          end    
     end
     y_true = y_true > 0;
     coefficient = corr(y, y_true); 

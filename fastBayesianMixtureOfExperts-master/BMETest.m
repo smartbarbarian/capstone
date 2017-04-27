@@ -20,7 +20,6 @@ ExpertsWeights = BME.Experts.Weights;
 ExpertsCategory_name = BME.Experts.Category_name;
 
 ExpertsMeans = BMEExpertsMeans(EInput,ExpertsWeights, ExpertsCategory_name, ECategory_index);
-    );
 %ExpertsMeans = BME.Experts.Means;
 
 GatingsOutputs = exp(GInput*BME.Gatings.Weights);
