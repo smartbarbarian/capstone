@@ -27,7 +27,9 @@ while (count <= BME.MaxIt)
     BME.Experts.Variances = BMEExpertsVariances(trainTarget, BME);
     BME.Gatings.Posteriors = BMEGatingsPosterior(trainTarget, BME);
     BME.LogLike(count,1) = BMELogLike(trainTarget, BME);
-    
+    %trainProb = sum(BME.Experts.Means.* BME.Gatings.Outputs, 2) ./ sum(BME.Gatings.Outputs, 2);
+    %trainProb = sum(BME.Experts.Means.* BME.Gatings.Outputs, 2) ./ sum(BME.Gatings.Outputs, 2);
+    %corr(trainProb > 0.5, trainTarget)
     if count == 1
         LogLikeChange = 10*BME.MinLogLikeChange*BME.LogLike(count);
     else

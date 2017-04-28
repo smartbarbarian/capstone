@@ -4,6 +4,7 @@
 cd '/Users/palejustice/Documents/capstone/MALSAR';
 addpath('./MALSAR/functions/Lasso/'); % load function
 addpath('./MALSAR/functions/SRMTL/'); % load function
+addpath('./MALSAR/functions/low_rank/'); % load function
 addpath('./MALSAR/utils/'); % load utilities
 addpath('./examples/train_and_test/'); % load train and test tools
 addpath('./MALSAR/functions/joint_feature_learning/'); % load function
@@ -264,7 +265,26 @@ opts.maxIter = 1000; % maximum iteration number of optimization.
 %model parameter range
 %param_range = [0.000001 0.00001 0.0001 0.001];
 %param_range = [1e-9, 1e-8, 1e-7, 1e-6];
-param_range = [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3]
+%%
+% 9    11      7      5
+%19.62 17.55  19.54  18.2
+param_range = [1e-11, 1e-10, 1e-9, 1e-8, 1e-7];
+traceEParam = cell([1 expert_num]);
+tracePerformMat = cell([1 expert_num]);
+%crossvalidation
+for i = 1 : expert_num
+    X = EInput{i};
+    Y = MTLTarget{i};
+    fprintf('Perform model selection via cross validation: \n')
+    [ best_param, perform_mat] = CrossValidation1Param...
+        ( X, Y, 'Logistic_Trace', opts, param_range, cv_fold, eval_func_str, higher_better);
+    traceEParam{i} = best_param;
+    tracePerformMat{i} = perform_mat;
+end
+%%
+% 5      7       5        4
+% 19.57  17.4    19.57    18.23
+param_range = [1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3];
 EParam = cell([1 expert_num]);
 PerformMat = cell([1 expert_num]);
 %crossvalidation
@@ -273,12 +293,11 @@ for i = 1 : expert_num
     Y = MTLTarget{i};
     fprintf('Perform model selection via cross validation: \n')
     [ best_param, perform_mat] = CrossValidation1Param...
-        ( X, Y, 'Logistic_L21', opts, param_range, cv_fold, eval_func_str, higher_better);
+        ( X, Y, 'Logistic_Trace', opts, param_range, cv_fold, eval_func_str, higher_better);
     EParam{i} = best_param;
     PerformMat{i} = perform_mat;
 end
-
-
+%%
 %EParam = {1e-05, 1e-07, 1e-05, 1e-04};
 BME.Experts.Param = EParam;
 

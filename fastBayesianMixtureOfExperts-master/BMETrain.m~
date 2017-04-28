@@ -27,7 +27,9 @@ while (count <= BME.MaxIt)
     BME.Experts.Variances = BMEExpertsVariances(trainTarget, BME);
     BME.Gatings.Posteriors = BMEGatingsPosterior(trainTarget, BME);
     BME.LogLike(count,1) = BMELogLike(trainTarget, BME);
-    
+    %trainProb = sum(BME.Experts.Means.* BME.Gatings.Outputs, 2) ./ sum(BME.Gatings.Outputs, 2);
+    %trainProb = sum(BME.Experts.Means.* BME.Gatings.Outputs, 2) ./ sum(BME.Gatings.Outputs, 2);
+    %corr(trainProb > 0.5, trainTarget)
     if count == 1
         LogLikeChange = 10*BME.MinLogLikeChange*BME.LogLike(count);
     else
@@ -57,12 +59,12 @@ while (count <= BME.MaxIt)
     testGatingOutput = exp(BME.Test.GInput*BME.Gatings.Weights);
     sumTestGatingOutput = sum(testGatingOutput, 2);
     
-    TestProb = testMeans.* testGatingOutput;
+    TestProb = sum(testMeans.* testGatingOutput, 2) ./ sumTestGatingOutput;
     
     
     corr_eval = corr(TestProb >= 0.5, testTarget);
     prec_rec(TestProb, testTarget, 'plotPR', 1, 'plotROC', 0, 'holdFigure', 1, 'plotBaseline', 0);
-    lgd = legend(corr_eval);
+    lgd = legend(num2str(corr_eval));
     title(lgd,'evaluation');
     disp('--------------------------------------------------------------');
     if ( abs(LogLikeChange) < BME.MinLogLikeChange*abs(BME.LogLike(count)))
