@@ -29,7 +29,7 @@ if nargin > 7
     BME.Test.EInput = TestEInput;
     BME.Test.ECategory_index = TestECategory_index;
     BME.Test.GInput = [ones(size(TestGInput,1),1) TestGInput];
-    
+    BME.Test.TestProb = [];
     %BME.Test.GInput = TestGInput;
     
     

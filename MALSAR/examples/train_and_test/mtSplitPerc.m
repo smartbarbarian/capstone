@@ -35,7 +35,7 @@
 %   Last modified on June 3, 2012.
 %
 
-function [X_sel, Y_sel, X_res, Y_res, selIdx] = mtSplitPerc(X, Y, percent)
+function [X_sel, Y_sel, X_res, Y_res, Grad_sel, Grad_res selIdx] = mtSplitPerc(X, Y, percent, Grad)
 
 if percent > 1 || percent <0
     error('splitting percentage error')
@@ -48,7 +48,10 @@ X_sel = cell(task_num, 0);
 Y_sel = cell(task_num, 0);
 X_res = cell(task_num, 0);
 Y_res = cell(task_num, 0);
-
+if nargin > 3
+    Grad_sel = cell(task_num, 0);
+    Grad_res = cell(task_num, 0);
+end    
 for t = 1: task_num
     task_sample_size = length(Y{t});
     tSelIdx = randperm(task_sample_size) <task_sample_size * percent;
@@ -59,5 +62,8 @@ for t = 1: task_num
     Y_sel{t} = Y{t}(tSelIdx,:);
     X_res{t} = X{t}(~tSelIdx,:);
     Y_res{t} = Y{t}(~tSelIdx,:);
-    
+    if nargin > 3
+        Grad_sel{t} = Grad{t}(tSelIdx,:);
+        Grad_res{t} = Grad{t}(~tSelIdx,:);
+    end 
 end

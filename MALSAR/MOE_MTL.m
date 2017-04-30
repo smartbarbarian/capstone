@@ -12,6 +12,7 @@ addpath('./MALSAR/utils/'); % load utilities
 addpath('../ADASYN_upd2');%load adasyn(extension of SMOTE)
 addpath('../prec_rec/prec_rec/')%load PRcruvr
 addpath('../fastBayesianMixtureOfExperts-master')%load 
+addpath('../SMOTE');%load SMOTE)
 %%
 data = readtable('XD_PCA_P_Simp.csv','ReadRowNames',true);
 

@@ -39,8 +39,11 @@ switch lower(BME.Experts.Type)
             Grad{t} = selected;
         end
         
-        ExpertWeight = Grad_MTL(Input, target, param, Grad);
+        
+        
+        [ExpertWeight, ExpertWeightParam] = Grad_MTL(Input, target, param, Grad, BME.Experts.Weights{i});
         BME.Experts.Weights{i} = ExpertWeight;
+        BME.Experts.Param{i} = ExpertWeightParam;
         
         
 %     case 'rr'     

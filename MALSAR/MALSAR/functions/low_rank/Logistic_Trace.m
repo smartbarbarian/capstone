@@ -45,7 +45,7 @@
 %  Least_Trace, init_opts
 
 %% Code starts here
-function [W, C, funcVal] = Logistic_Trace(X, Y, rho1, opts)
+function [W, C, funcVal] = Logistic_Trace(X, Y, rho1, opts, Grad)
 
 if nargin <3
     error('\n Inputs: X, Y, and rho1 should be specified!\n');
@@ -55,7 +55,12 @@ X = multi_transpose(X);
 if nargin <4
     opts = [];
 end
-
+if nargin < 5
+    Grad = cell(size(Y));
+    for t = 1 : length(Y)
+        Grad{t} = ones(size(Y{t}));
+    end    
+end
 % initialize options.
 opts=init_opts(opts);
 
@@ -126,7 +131,7 @@ while iter < opts.maxIter
     Cs = (1 + alpha) * Cz - alpha * Cz_old;
     
     % compute function value and gradients of the search point
-    [gWs, gCs, Fs ]  = gradVal_eval(Ws, Cs);
+    [gWs, gCs, Fs ]  = gradVal_eval(Ws, Cs, Grad);
     
     % the Armijo Goldstein line search scheme
     while true
@@ -209,17 +214,17 @@ W = Wzp;
 C = Czp;
 
 % private functions
-    function [grad_W, grad_C, funcVal] = gradVal_eval(W, C)
+    function [grad_W, grad_C, funcVal] = gradVal_eval(W, C, Grad)
         grad_W = zeros(dimension, task_num);
         grad_C = zeros(1, task_num);
         lossValVect = zeros (1 , task_num);
         if opts.pFlag
             parfor i = 1:task_num
-                [ grad_W(:, i), grad_C(:, i), lossValVect(:, i)] = unit_grad_eval( W(:, i), C(i), X{i}, Y{i});
+                [ grad_W(:, i), grad_C(:, i), lossValVect(:, i)] = unit_grad_eval( W(:, i), C(i), X{i}, Y{i}, Grad{i});
             end
         else
             for i = 1:task_num
-                [ grad_W(:, i), grad_C(:, i), lossValVect(:, i)] = unit_grad_eval( W(:, i), C(i), X{i}, Y{i});
+                [ grad_W(:, i), grad_C(:, i), lossValVect(:, i)] = unit_grad_eval( W(:, i), C(i), X{i}, Y{i}, Grad{i});
             end
         end
         grad_W = grad_W+ rho_L2 * 2 * W;
@@ -247,7 +252,7 @@ C = Czp;
 
 end
 
-function [ grad_w, grad_c, funcVal ] = unit_grad_eval( w, c, x, y)
+function [ grad_w, grad_c, funcVal ] = unit_grad_eval( w, c, x, y, grad)
 %gradient and logistic evaluation for each task
 m = length(y);
 weight = ones(m, 1)/m;
@@ -257,6 +262,7 @@ bb = max( aa, 0);
 funcVal = weight'* ( log( exp(-bb) +  exp(aa-bb) ) + bb );
 pp = 1./ (1+exp(aa));
 b = -weighty.*(1-pp);
+b = b .* grad;
 grad_c = sum(b);
 grad_w = x * b;
 end
