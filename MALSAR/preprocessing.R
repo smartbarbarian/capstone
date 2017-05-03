@@ -3,6 +3,7 @@ library(randomForest)
 library(e1071)
 library(rJava)
 #library(RWeka)
+library(rpart)
 setwd("~/Documents/capstone/MALSAR")
 rawdata = read.csv("XD_PCA_P_Simp.csv")
 
@@ -34,8 +35,8 @@ train_x <-original_data[idx,]
 col = dim(train_x)[2]
 
 train_y <- y[idx]
-test_x <-original_data[!idx,]
-test_y <-y[!idx]
+test_x <-original_data[-idx,]
+test_y <-y[-idx]
 temp = train_x[,5:col]
 
 mean = colMeans(temp, na.rm = TRUE)
@@ -60,10 +61,21 @@ percover = ((length(train_y) / sum(train_y)) - 1)*100
 #2032.501
 balance_data = SMOTE(train_label~.,old_data,perc.over = 2100,perc.under = 100)
 table(balance_data[,1])
-
+################
+balance_data <- read.csv(file="trainData.csv")
+test = read.csv(file="testData.csv")
+test_data = test[, -1]
+test_label = test[, 1]
+#######################
 y1=as.numeric(balance_data[,1])
 x1=balance_data[,-1]
-m<-randomForest(y1~.,x1)
+#m<-randomForest(y1~.,x1)
+m<-rpart(y1~.,data=x1)
 pred=predict(m,test_data)
 corr(cbind(pred,test_label))
+
+train = balance_data
+write.csv(train, file = "trainData.csv")
+test = cbind(test_label, test_data)
+write.csv(test, file = "testData.csv")
 

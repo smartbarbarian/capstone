@@ -10,7 +10,7 @@
 % use of this software. You can run it at your own risk.             %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function BME = BMEExpertsTrain(Target, BME, i)
+function BME = BMEExpertsTrain(Target, holdout_MTL_target, BME, i)
 
 %% Train the expert of BME
 GatingPosterior = BME.Gatings.Posteriors(:,i);
@@ -24,11 +24,14 @@ switch lower(BME.Experts.Type)
         target = Target{i};
         category_name = BME.Experts.Category_name{i};
         category_index = BME.Experts.Category_index{i};
+        holdoutTarget = holdout_MTL_target{i};
+        holdoutInput = BME.Experts.holdout_MTL_input{i};
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         
         
-        gradient = BME.Experts.Alpha*(GatingPosterior.^0.5);%actually it's the prefix of the gradient
+        %gradient = BME.Experts.Alpha*(GatingPosterior.^0.5);%actually it's the prefix of the gradient
+        gradient = BME.Experts.Alpha*GatingPosterior;
         
         task_num = length(category_name);
         Grad = cell([1, task_num]);
@@ -41,7 +44,7 @@ switch lower(BME.Experts.Type)
         
         
         
-        [ExpertWeight, ExpertWeightParam] = Grad_MTL(Input, target, param, Grad, BME.Experts.Weights{i});
+        [ExpertWeight, ExpertWeightParam] = Grad_MTL(Input, target, holdoutInput, holdoutTarget, param, Grad, BME.Experts.Weights{i});
         BME.Experts.Weights{i} = ExpertWeight;
         BME.Experts.Param{i} = ExpertWeightParam;
         

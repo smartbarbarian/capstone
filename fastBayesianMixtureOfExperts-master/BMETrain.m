@@ -10,7 +10,7 @@
 % use of this software. You can run it at your own risk.             %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function BME = BMETrain(BME, MTLTarget, trainTarget, testTarget)
+function BME = BMETrain(BME, MTLTarget, trainTarget, testTarget, holdout_MTL_target)
 
 %% Train BME
 
@@ -18,18 +18,45 @@ count = 1;
 while (count <= BME.MaxIt)
         
     for i = 1:BME.NumExperts    
-        BME = BMEExpertsTrain(MTLTarget, BME, i) ;
-        BME = BMEGatingsTrain(BME, i) ;
-        BME.Gatings.Outputs = exp(BME.Gatings.Input*BME.Gatings.Weights);
+        BME = BMEExpertsTrain(MTLTarget, holdout_MTL_target, BME, i) ;
     end
-    
     BME.Experts.Means = BMEExpertsMeans(BME.Experts.Input, BME.Experts.Weights, BME.Experts.Category_name, BME.Experts.Category_index);
-    BME.Experts.Variances = BMEExpertsVariances(trainTarget, BME);
-    BME.Gatings.Posteriors = BMEGatingsPosterior(trainTarget, BME);
+    
+    newPosteriors = BMEGatingsPosterior(trainTarget, BME);
+    newVariances = BMEExpertsVariances(trainTarget, BME);
+    BME.Gatings.Posteriors = newPosteriors;
+    BME.Experts.Variances = newVariances;
+    
+    preLogLike = BMELogLike(trainTarget, BME);
+    
+    while true
+        for i = 1:BME.NumExperts    
+            BME = BMEGatingsTrain(BME, i) ;
+        end
+        
+        BME.Gatings.Outputs = exp(BME.Gatings.Input*BME.Gatings.Weights);
+        newPosteriors = BMEGatingsPosterior(trainTarget, BME);
+        newVariances = BMEExpertsVariances(trainTarget, BME);
+        BME.Gatings.Posteriors = newPosteriors;
+        BME.Experts.Variances = newVariances;
+        LogLike = BMELogLike(trainTarget, BME);
+        LogLikeChange = LogLike - preLogLike;
+        if ( abs(LogLikeChange) < BME.MinLogLikeChange*abs(preLogLike))
+            break;
+        end
+        preLogLike = LogLike;
+    end    
+    
+    
+    
+    
     BME.LogLike(count,1) = BMELogLike(trainTarget, BME);
     %trainProb = sum(BME.Experts.Means.* BME.Gatings.Outputs, 2) ./ sum(BME.Gatings.Outputs, 2);
     %trainProb = sum(BME.Experts.Means.* BME.Gatings.Outputs, 2) ./ sum(BME.Gatings.Outputs, 2);
     %corr(trainProb > 0.5, trainTarget)
+    
+    %trainResult = (BME.Experts.Means > 0.5)
+    %corrResult = corr(trainResult, trainTarget)
     if count == 1
         LogLikeChange = 10*BME.MinLogLikeChange*BME.LogLike(count);
     else
@@ -67,7 +94,8 @@ while (count <= BME.MaxIt)
     lgd = legend(num2str(corr_eval));
     title(lgd,'evaluation');
     disp('--------------------------------------------------------------');
-    if ( abs(LogLikeChange) < BME.MinLogLikeChange*abs(BME.LogLike(count)))
+    %if ( abs(LogLikeChange) < BME.MinLogLikeChange*abs(BME.LogLike(count)))
+    if (abs(LogLikeChange) < BME.MinLogLikeChange*abs(BME.LogLike(count)))
         break;
     end
     count = count + 1;

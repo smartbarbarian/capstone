@@ -10,7 +10,7 @@
 % use of this software. You can run it at your own risk.             %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function  BME = BMEInit(BME, EInput, Category_name, ECategory_index, EParam, GInput, TestEInput, TestECategory_index, TestGInput, holdout_MTL_input)
+function  BME = BMEInit(BME, EInput, Category_name, ECategory_index, EParam, GInput, trainTarget, TestEInput, TestECategory_index, TestGInput, holdout_MTL_input)
 
 %% Initialize BME
 % Input parameters
@@ -59,7 +59,7 @@ switch lower(BME.Experts.Type)
         BME.Experts.holdout_MTL_input = holdout_MTL_input;
         BME.Experts.Weights = cell([1 BME.NumExperts]);
         
-        %[IDInput, Centers] = kMeansCluster(GInput, trainTarget, BME.NumExperts);
+        [IDInput, Centers] = kMeansCluster(GInput, trainTarget, BME.NumExperts);
         BME.Experts.Alpha = BME.NumExperts;
         %BME.Experts.Alpha = BME.NumExperts^0.5;
 %         BME.Experts.X_ba = cell([1 BME.NumExperts]); %input%%%%%%%%asignment in the Experts Train
@@ -121,7 +121,6 @@ N = size(GInput,1);
 switch lower(BME.Gatings.Type)
     case 'mtl'
         BME.Gatings.Input = [ones(N,1) GInput];
-        GD = size(BME.Gatings.Input,2);
         BME.Gatings.Weights = zeros(GD,BME.NumExperts);
         BME.Gatings.Outputs = exp(BME.Gatings.Input*BME.Gatings.Weights);
         BME.Gatings.Posteriors = ones(N,BME.NumExperts)/BME.NumExperts;
@@ -136,7 +135,7 @@ switch lower(BME.Gatings.Type)
         GD = size(BME.Gatings.Input,2);
         Hessian = BME.Gatings.Input'*BME.Gatings.Input;
         
-        BME.Gatings.Alpha = 1e-3;
+        BME.Gatings.Alpha = 1e-2;
         
         BME.Gatings.InvH = inv(Hessian + BME.Gatings.Alpha*eye(GD));
         BME.Gatings.InvHH = BME.Gatings.InvH*Hessian;

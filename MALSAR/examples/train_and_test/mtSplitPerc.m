@@ -35,7 +35,7 @@
 %   Last modified on June 3, 2012.
 %
 
-function [X_sel, Y_sel, X_res, Y_res, Grad_sel, Grad_res selIdx] = mtSplitPerc(X, Y, percent, Grad)
+function [X_sel, Y_sel, X_res, Y_res, Grad_sel, Grad_res, selIdx] = mtSplitPerc(X, Y, percent, Grad)
 
 if percent > 1 || percent <0
     error('splitting percentage error')

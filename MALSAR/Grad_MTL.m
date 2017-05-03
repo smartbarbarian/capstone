@@ -1,4 +1,4 @@
-function [ Weight , Param] = Grad_MTL( X, Y,  param, Grad, preWeight)
+function [ Weight , Param] = Grad_MTL( X, Y, holdoutInput, holdoutTarget,  param, Grad, preWeight)
 %UNTITLED2 Summary of this function goes here
     %% convert 0,1 to -1, 1
     %     for t = 1: size(X,2)
@@ -21,26 +21,37 @@ function [ Weight , Param] = Grad_MTL( X, Y,  param, Grad, preWeight)
     
     training_percent = 0.5;
     [X_tr, Y_tr, X_te, Y_te, Grad_tr, Grad_te] = mtSplitPerc(X, Y, training_percent, Grad);
+    
     [W, C, funcVal] = Logistic_Trace(X_tr, Y_tr, param, opts, Grad_tr);
-    corr_cur = eval_MTL_matthews(Y_te, X_te, W, C);
+    corr_cur = eval_MTL_matthews(holdoutTarget, holdoutInput, W, C);
+    
     [W, C, funcVal] = Logistic_Trace(X_tr, Y_tr, param * 10, opts, Grad_tr);
-    corr_big = eval_MTL_matthews(Y_te, X_te, W, C);
-    if corr_big > corr_cur
-        while corr_big > corr_cur
-            corr_cur = corr_big;
-            param = param * 10;
-            [W, C, funcVal] = Logistic_Trace(X_tr, Y_tr, param * 10, opts, Grad_tr);
-            corr_big = eval_MTL_matthews(Y_te, X_te, W, C);
-        end
+    corr_big_next = eval_MTL_matthews(holdoutTarget, holdoutInput, W, C);
+    
+    param_big = param;
+    corr_big = corr_cur;
+    while corr_big_next > corr_big
+        corr_big = corr_big_next;
+        param_big = param_big * 10;
+        [W, C, funcVal] = Logistic_Trace(X_tr, Y_tr, param_big * 10, opts, Grad_tr);
+        corr_big_next = eval_MTL_matthews(holdoutTarget, holdoutInput, W, C);
+    end
+    
+    [W, C, funcVal] = Logistic_Trace(X_tr, Y_tr, param / 10.0, opts, Grad_tr);
+    corr_small_next = eval_MTL_matthews(holdoutTarget, holdoutInput, W, C);
+    
+    param_small = param;
+    corr_small = corr_cur;
+    while corr_small_next > corr_small
+        corr_small = corr_small_next;
+        param_small = param_small / 10;
+        [W, C, funcVal] = Logistic_Trace(X_tr, Y_tr, param_small / 10, opts, Grad_tr);
+        corr_small_next = eval_MTL_matthews(holdoutTarget, holdoutInput, W, C);
+    end
+    if corr_big > corr_small
+        param = param_big;
     else
-        [W, C, funcVal] = Logistic_Trace(X_tr, Y_tr, param / 10, opts, Grad_tr);
-        corr_small = eval_MTL_matthews(Y_te, X_te, W, C);
-        while corr_small > corr_cur
-            corr_cur = corr_small;
-            param = param / 10;
-            [W, C, funcVal] = Logistic_Trace(X_tr, Y_tr, param / 10, opts, Grad_tr);
-            corr_small = eval_MTL_matthews(Y_te, X_te, W, C);
-        end
+        param = param_small;
     end    
     %[W, C, funcVal] = Logistic_L21(X, Y, param, opts, Grad);
     [W, C, funcVal] = Logistic_Trace(X, Y, param, opts, Grad);
