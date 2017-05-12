@@ -4,8 +4,28 @@ library(e1071)
 library(rJava)
 #library(RWeka)
 library(rpart)
+#install.packages("PRROC")
+library(PRROC)
 setwd("~/Documents/capstone/MALSAR")
+
+
+PRcurve<-function(preds,trues,...){
+  require(ROCR,quietly = T)
+  pd<-prediction(preds,trues)
+  pf<-performance(pd,"prec","rec")
+  #rev:reverses a vector. cummax:obtains the cumulative maximum of a set of numbers
+  pf@y.values<-lapply(pf@y.values,function(x) rev(cummax(rev(x))))
+  plot(pf,xlim = c(0, 1), ylim = c(0,1))
+  t = cor(cbind(as.numeric(preds >= 0.5) ,trues))[2]
+  legend('topright',c('Matthews: ',  as.character(round(t,4))) )
+}
+
+
+
+
 rawdata = read.csv("XD_PCA_P_Simp.csv")
+
+
 
 head(rawdata)
 dim(rawdata)
@@ -64,17 +84,29 @@ table(balance_data[,1])
 ################
 balance_data <- read.csv(file="trainData.csv")
 test = read.csv(file="testData.csv")
-test_data = test[, -1]
-test_label = test[, 1]
+test_data = test[, c(-1, -2)]
+test_label = test[, 2]
 #######################
-y1=as.numeric(balance_data[,1])
-x1=balance_data[,-1]
+y1=as.numeric(balance_data[,2])
+x1=balance_data[,c(-1, - 2)]
 #m<-randomForest(y1~.,x1)
 m<-rpart(y1~.,data=x1)
 pred=predict(m,test_data)
-corr(cbind(pred,test_label))
+corr = cor(cbind(as.numeric(pred >= 0.5) ,test_label))
+#library(party)
+mtree <- ctree(y1~., data = x1)
+pred_tree = predict(mtree, test_data)
+
+PRcurve(pred,test_label,main="regression tree")
+
+pr <- pr.curve( test_label,pred, curve = TRUE );
+# plot curve
+plot(pr);
 
 train = balance_data
+write.csv(cbind(pred, test_label), file = "regressionTreeResult.csv")
+write.csv(cbind(pred_tree,test_label), file = "decisionTreeResult.csv")
+
 write.csv(train, file = "trainData.csv")
 test = cbind(test_label, test_data)
 write.csv(test, file = "testData.csv")

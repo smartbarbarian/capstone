@@ -16,13 +16,18 @@ function GatingsPosterior = BMEGatingsPosterior(Target, BME)
 
 GatingsOutputs = BMEGatingsOutputsNorm(BME);
 Means = BME.Experts.Means;
-Variances = BME.Experts.Variances;
+%Variances = BME.Experts.Variances;
 GatingsPosterior = zeros(size(GatingsOutputs));
 
 if size(Target,2) == 1
     for i = 1:BME.NumExperts
-        GatingsPosterior(:,i) = GatingsOutputs(:,i).*onedimgauss(Means(:,i) - Target, Variances(i));
+%         GatingsPosterior(:,i) = GatingsOutputs(:,i).*onedimgauss(Means(:,i) - Target, Variances(i));
+        % P(E/XZ) = P(E/Z) * P(X/ZE);
+        GatingsPosterior(:,i) = GatingsOutputs(:,i) .* ((1 - Target) + (2 * Target - 1) .* Means(:,i));
     end
+    
+    GatingsPosterior = GatingsPosterior ./ sum(GatingsPosterior, 2);
+    
 else
     for i = 1:BME.NumExperts
         for j = 1:size(Target,2)

@@ -136,7 +136,7 @@ switch lower(BME.Gatings.Type)
         GD = size(BME.Gatings.Input,2);
         Hessian = BME.Gatings.Input'*BME.Gatings.Input;
         
-        BME.Gatings.Alpha = 1e-3;
+        BME.Gatings.Alpha = 1e-2;
         
         BME.Gatings.InvH = inv(Hessian + BME.Gatings.Alpha*eye(GD));
         BME.Gatings.InvHH = BME.Gatings.InvH*Hessian;

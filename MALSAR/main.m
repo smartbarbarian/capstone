@@ -1,5 +1,13 @@
 train = readtable('trainData.csv','ReadRowNames',true);
 test = readtable('testData.csv','ReadRowNames',true);
+
+%%
+trainData = train(:,2:end);
+trainLabel = train(:,1);
+categoricalColNum = 4;
+testData = test(:,2:end);
+testLabel = test(:,1);
+%%
 BME = MOEMTL(train(:,2:end), train(:,1), 4, test(:,2:end), test(:,1));
 %trainData, trainLabel, categoricalColNum, testData, testLabel
 trainData = train(:,2:end);

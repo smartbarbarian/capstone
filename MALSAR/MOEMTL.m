@@ -35,13 +35,13 @@ function [ BME ] = MOEMTL( trainData, trainLabel, categoricalColNum, testData, t
     %% Create BME
     N = size(trainTarget, 1);
     BME = BMECreate('NumExperts', expert_num , 'MaxIt', 1e6, 'EType', 'mtl', 'ENbf', 0.1, 'EKernel', 'linear', 'EKParam', 0.5, ...
-    'GType', 'mtl', 'GNbf', 0.1, 'GKernel', 'linear', 'GKParam', 0.5, 'MinLogLikeChange', N/1e5);
+    'GType', 'mlr', 'GNbf', 0.1, 'GKernel', 'linear', 'GKParam', 0.5, 'MinLogLikeChange', N/1e5);
     %% BME.Experts.Input
     EInput = cell([1, expert_num]);
     MTLTarget = cell([1, expert_num]); % mtl target
     
     
-    tempTarget
+    %%tempTarget
     for i = 1 : expert_num
         task_num = length(category_name{i});
         X = cell([1 task_num]);
@@ -138,10 +138,63 @@ function [ BME ] = MOEMTL( trainData, trainLabel, categoricalColNum, testData, t
     BME.Experts.Param = EParam;
     
     %% BMEInit
-    %% Initialize BME using kmeans clustering
-    BME = BMEInit(BME, EInput, Category_name, ECategory_index, EParam, GInput, TestEInput, TestECategory_index, TestGInput, holdout_MTL_input) ; 
+    %% Initialize BME 
+    BME = BMEInit(BME, EInput, Category_name, ECategory_index, EParam, GInput, TestEInput, TestECategory_index, TestGInput, holdout_MTL_input);
+    
+    %% initialize
+    for i = 1:BME.NumExperts    
+        BME = BMEExpertsTrain(MTLTarget, holdout_MTL_target, BME, i) ;
+    end
+    BME.Experts.Means = BMEExpertsMeans(BME.Experts.Input, BME.Experts.Weights, BME.Experts.Category_name, BME.Experts.Category_index);
+    BME.Gatings.Posteriors = BMEGatingsPosterior(trainTarget, BME);
+    %% jobtitle MTL
+    testMeans = BMEExpertsMeans(BME.Test.EInput, BME.Experts.Weights, BME.Experts.Category_name, BME.Test.ECategory_index);
+    
+    
+    
     %% MOE
     BME = BMETrain(BME, MTLTarget, trainTarget, testTarget, holdout_MTL_target);
     
+    %% figure
+%     testMeans = BMEExpertsMeans(BME.Test.EInput, BME.Experts.Weights, BME.Experts.Category_name, BME.Test.ECategory_index);
+%     testGatingOutput = exp(BME.Test.GInput*BME.Gatings.Weights);
+%     sumTestGatingOutput = sum(testGatingOutput, 2);
+%     TestProb = sum(testMeans.* testGatingOutput, 2) ./ sumTestGatingOutput;
+    cTree = table2array(readtable('decisionTreeResult.csv','ReadRowNames',true));
+    %% figure
+    hold on
+    p1 = prec_rec(cTree(:, 1), cTree(:, 2), 'plotPR', 1, 'plotROC', 0, 'holdFigure', 1, 'plotBaseline', 0);
+    p1_corr = corr(cTree(:, 1) >= 0.5, cTree(:, 2));
+    
+    p2 = prec_rec(testMeans(:, 1), testTarget, 'plotPR', 1, 'plotROC', 0, 'holdFigure', 1, 'plotBaseline', 0);
+    p2_corr = corr(testMeans(:, 1) >= 0.5, testTarget);
+    p3 = prec_rec(testMeans(:, 2), testTarget, 'plotPR', 1, 'plotROC', 0, 'holdFigure', 1, 'plotBaseline', 0);
+    p3_corr = corr(testMeans(:, 2) >= 0.5, testTarget);
+    p4 = prec_rec(testMeans(:, 3), testTarget, 'plotPR', 1, 'plotROC', 0, 'holdFigure', 1, 'plotBaseline', 0);
+    p4_corr = corr(testMeans(:, 3) >= 0.5, testTarget);
+    p5 = prec_rec(testMeans(:, 4), testTarget, 'plotPR', 1, 'plotROC', 0, 'holdFigure', 1, 'plotBaseline', 0);
+    p5_corr = corr(testMeans(:, 4) >= 0.5, testTarget);
+
+
+
+    testProb = BME.Test.TestProb(:, end);
+    p6 = prec_rec(testProb, testTarget, 'plotPR', 1, 'plotROC', 0, 'holdFigure', 1, 'plotBaseline', 0);
+    p6_corr = corr(testProb >= 0.5, testTarget);
+    
+%     rTree = table2array(readtable('regressionTreeResult.csv','ReadRowNames',true));
+%     p1 = prec_rec(rTree(:, 1), rTree(:, 2), 'plotPR', 1, 'plotROC', 0, 'holdFigure', 1, 'plotBaseline', 0);
+%     p1_corr = corr(rTree(:, 1) >= 0.5, rTree(:, 2));
+    
+    hold off
+    %['MOE&MTL' num2str(p3_corr)]
+    %legend([p1 p2 p3 p4 p5 p6],'decisionTree', 'jobtitle', 'department','purtimeframe','industry', 'MOE&MTL');
+    legend('decisionTree', 'jobtitle', 'department','purtimeframe','industry', 'MOE&MTL');
+    
+    %% coefficient
+    c = {'decisionTree', 'jobtitle', 'department','purtimeframe','industry', 'MOE&MTL'};
+    x = [p1_corr p2_corr p3_corr p4_corr p5_corr p6_corr];
+    bar(x);
+    set(gca, 'XTickLabel', c);
+    set(gca,'ylim',[0.15 0.23]);
 end
 

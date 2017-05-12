@@ -10,26 +10,32 @@
 % use of this software. You can run it at your own risk.             %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-function LogLike = BMELogLike(Target, BME)
-%% Compute the loglikelihood
+function GatingsPosterior = BMEGatingsPosterior(Target, BME)
 
-ExpertsMeans = BME.Experts.Means;
-%ExpertsVariances = BME.Experts.Variances;
+%% Compute the posterior probability. 
+
 GatingsOutputs = BMEGatingsOutputsNorm(BME);
+Means = BME.Experts.Means;
+Variances = BME.Experts.Variances;
+GatingsPosterior = zeros(size(GatingsOutputs));
 
-sumprob = 0.0;
 if size(Target,2) == 1
     for i = 1:BME.NumExperts
-        %sumprob = sumprob + GatingsOutputs(:,i).*onedimgauss(ExpertsMeans(:,i) - Target, ExpertsVariances(i));
-        sumprob = sumprob + GatingsOutputs(:,i).*((1 - Target) + (2 * Target - 1) .* ExpertsMeans(:,i));
+%         GatingsPosterior(:,i) = GatingsOutputs(:,i).*onedimgauss(Means(:,i) - Target, Variances(i));
+        % P(E/XZ) = P(E/Z) * P(X/ZE);
+        Means(:,i) = (1 - Target) + (2 * Target - 1) .* Means(:,i);
+        GatingsPosterior(:,i) = GatingsOutputs(:,i) * (1 / )
     end
 else
     for i = 1:BME.NumExperts
-        productprob = GatingsOutputs(:,i);
         for j = 1:size(Target,2)
-            productprob = productprob.*onedimgauss(ExpertsMeans(:,j,i) - Target(:,j), ExpertsVariances(j,i));
+            GatingsPosterior(:,i) = GatingsOutputs(:,i).*onedimgauss(Means(:,j,i) - Target(:,j), Variances(j,i)) ;
         end
-        sumprob = sumprob + productprob;
     end
 end
-LogLike = sum(log(sumprob));
+SumGatingsPosterior = sum(GatingsPosterior,2) ;
+GatingsPosterior = GatingsPosterior./repmat(SumGatingsPosterior,1,size(GatingsPosterior,2)) ;
+for i = 1:BME.NumExperts
+    index = find(GatingsPosterior(:,i) < 1e-10);
+    GatingsPosterior(index,i) = 0;
+end

@@ -20,32 +20,71 @@ while (count <= BME.MaxIt)
     for i = 1:BME.NumExperts    
         BME = BMEExpertsTrain(MTLTarget, holdout_MTL_target, BME, i) ;
     end
+    
+    testMeans = BMEExpertsMeans(BME.Test.EInput, BME.Experts.Weights, BME.Experts.Category_name, BME.Test.ECategory_index);
     BME.Experts.Means = BMEExpertsMeans(BME.Experts.Input, BME.Experts.Weights, BME.Experts.Category_name, BME.Experts.Category_index);
     
-    newPosteriors = BMEGatingsPosterior(trainTarget, BME);
-    newVariances = BMEExpertsVariances(trainTarget, BME);
-    BME.Gatings.Posteriors = newPosteriors;
-    BME.Experts.Variances = newVariances;
-    
-    preLogLike = BMELogLike(trainTarget, BME);
-    
-    while true
+    %%
+    testGatingOutput = exp(BME.Test.GInput*BME.Gatings.Weights);
+    sumTestGatingOutput = sum(testGatingOutput, 2);
+
+    TestProb = sum(testMeans.* testGatingOutput, 2) ./ sumTestGatingOutput;
+
+    BME.Test.TestProb = [BME.Test.TestProb, TestProb];
+    test_corr_eval = corr(TestProb >= 0.5, testTarget);
+    disp(['Current test_corr_eval:               '  num2str(test_corr_eval)]);
+    %%
+    preCorrEval = test_corr_eval;
+    preGatingsWeights = BME.Gatings.Weights;
+%     while true
         for i = 1:BME.NumExperts    
             BME = BMEGatingsTrain(BME, i) ;
         end
+        %% hold out validation
+
+
+        testGatingOutput = exp(BME.Test.GInput*BME.Gatings.Weights);
+        sumTestGatingOutput = sum(testGatingOutput, 2);
+
+        TestProb = sum(testMeans.* testGatingOutput, 2) ./ sumTestGatingOutput;
+
+        BME.Test.TestProb = [BME.Test.TestProb, TestProb];
+        test_corr_eval = corr(TestProb >= 0.5, testTarget);
+        disp(['Current test_corr_eval:               '  num2str(test_corr_eval)]);
         
-        BME.Gatings.Outputs = exp(BME.Gatings.Input*BME.Gatings.Weights);
-        newPosteriors = BMEGatingsPosterior(trainTarget, BME);
-        newVariances = BMEExpertsVariances(trainTarget, BME);
-        BME.Gatings.Posteriors = newPosteriors;
-        BME.Experts.Variances = newVariances;
-        LogLike = BMELogLike(trainTarget, BME);
-        LogLikeChange = LogLike - preLogLike;
-        if ( abs(LogLikeChange) < BME.MinLogLikeChange*abs(preLogLike))
-            break;
-        end
-        preLogLike = LogLike;
-    end    
+        if preCorrEval > test_corr_eval
+            BME.Gatings.Weights = preGatingsWeights;
+%             break;
+        end     
+            BME.Gatings.Outputs = exp(BME.Gatings.Input*BME.Gatings.Weights);
+            BME.Gatings.Posteriors = BMEGatingsPosterior(trainTarget, BME);
+%             preCorrEval = test_corr_eval;
+%             preGatingsWeights = BME.Gatings.Weights;
+%         end    
+%     end
+
+%         newPosteriors = BMEGatingsPosterior(trainTarget, BME);
+%         newVariances = BMEExpertsVariances(trainTarget, BME);
+%         BME.Gatings.Posteriors = newPosteriors;
+%         BME.Experts.Variances = newVariances;
+%         LogLike = BMELogLike(trainTarget, BME);
+%         LogLikeChange = LogLike - preLogLike;
+%         if ( abs(LogLikeChange) < BME.MinLogLikeChange*abs(preLogLike))
+%             break;
+%         end
+%         preLogLike = LogLike;
+    
+    
+    
+    
+%     newPosteriors = BMEGatingsPosterior(trainTarget, BME);
+%     newVariances = BMEExpertsVariances(trainTarget, BME);
+%     BME.Gatings.Posteriors = newPosteriors;
+%     BME.Experts.Variances = newVariances;
+%     
+%     preLogLike = BMELogLike(trainTarget, BME);
+    
+       
     
     
     
@@ -82,7 +121,6 @@ while (count <= BME.MaxIt)
     disp('--------------------------------------------------------------'); 
     
     
-    testMeans = BMEExpertsMeans(BME.Test.EInput, BME.Experts.Weights, BME.Experts.Category_name, BME.Test.ECategory_index);
     testGatingOutput = exp(BME.Test.GInput*BME.Gatings.Weights);
     sumTestGatingOutput = sum(testGatingOutput, 2);
     
@@ -94,8 +132,8 @@ while (count <= BME.MaxIt)
     lgd = legend(num2str(corr_eval));
     title(lgd,'evaluation');
     disp('--------------------------------------------------------------');
-    %if ( abs(LogLikeChange) < BME.MinLogLikeChange*abs(BME.LogLike(count)))
-    if (abs(LogLikeChange) < BME.MinLogLikeChange*abs(BME.LogLike(count)))
+%     if ( abs(LogLikeChange) < BME.MinLogLikeChange*abs(BME.LogLike(count)))
+    if (abs(LogLikeChange) < 1e-8)
         break;
     end
     count = count + 1;
