@@ -196,5 +196,24 @@ function [ BME ] = MOEMTL( trainData, trainLabel, categoricalColNum, testData, t
     bar(x);
     set(gca, 'XTickLabel', c);
     set(gca,'ylim',[0.15 0.23]);
+    %% 
+    subGraphTitle = {'JobTitle' 'Department' 'PURTimeframe' 'Industry'};
+    for i = 1 : expert_num
+        task_num = length(category_name{i});
+        tempArray = zeros([1 task_num]);
+        for t = 1: task_num
+            isSelected = ismember(train_category_index{i}, category_name{i}(t));
+            tempArray(t)  = sum(isSelected);
+        end
+        subplot(4,1,i)
+        bar(tempArray);
+        xticks([1:task_num]);
+        xticklabels(category_name{i});
+        xtickangle(15)
+%         xlabel(category_name{i});
+%         set(gca,'XTick',[1:1:task_num]);
+        %set(gca, 'XTickLabel', category_name{i});
+        title(subGraphTitle{i});
+    end
 end
 
